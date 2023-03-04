@@ -72,11 +72,15 @@ class TokenizerConfig:
 
     :param truncation_side: Truncation side
     :type truncation_side: str
+    
+    :param pad_to_multiple_of: if set will pad the sequence to a multiple of the provided value to improve harware utilization on Tensor Cores enabled GPU.
+    :type pad_to_multiple_of: Optional[int]
     """
 
     tokenizer_path: str
     padding_side: str = "left"
     truncation_side: str = "right"
+    pad_to_multiple_of: Optional[int] = None
 
     @classmethod
     def from_dict(cls, config: Dict[str, Any]):
