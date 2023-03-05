@@ -80,14 +80,14 @@ class AccelerateILQLTrainer(AccelerateRLTrainer):
         self.total_steps = self.config.train.epochs * len(train_dataloader)
         self.total_steps = min(self.total_steps, self.config.train.total_steps)
 
-    def make_experience(self, samples, rewards, max_length=2048):
+    def make_experience(self, samples, rewards, max_length=2048 , pad_to_multiple_of=None):
         """
         Tokenizes samples and shapes rewards into proper tensors and then inserts the resulting dataset into the trainer
         """
         logger.info("Collecting rollouts")
 
         if self.tokenizer:
-            samples = [tokenize_dialogue(s, self.tokenizer, max_length) for s in samples]
+            samples = [tokenize_dialogue(s, self.tokenizer, max_length , pad_to_multiple_of = pad_to_multiple_of) for s in samples]
 
         all_input_ids = []
         all_actions_ixs = []

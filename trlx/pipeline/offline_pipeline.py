@@ -9,7 +9,7 @@ from trlx.data.ilql_types import ILQLBatch, ILQLElement
 from trlx.pipeline import BasePipeline, BaseRolloutStore, register_datapipeline
 
 
-def tokenize_dialogue(dialogue: Union[str, List[str]], tokenizer, max_length=2048) -> List[int]:  # noqa: C901
+def tokenize_dialogue(dialogue: Union[str, List[str]], tokenizer, max_length=2048 , pad_to_multiple_of:int=None) -> List[int]:  # noqa: C901
     """
     Tokenize sample with the interleaved form of (prompt_1, output_1, prompt_2, output_2...)
     """
@@ -24,7 +24,7 @@ def tokenize_dialogue(dialogue: Union[str, List[str]], tokenizer, max_length=204
     if tokenizer.truncation_side == "left":
         for phrase in reversed(dialogue):
             # Manually added BOS and EOS above so we don't want to add special tokens here
-            tokens = tokenizer(phrase, add_special_tokens=False).input_ids[-ctx_length:]
+            tokens = tokenizer(phrase, add_special_tokens=False , pad_to_multiple_of = pad_to_multiple_of ).input_ids[-ctx_length:]
             ctx_length -= len(tokens)
             out.insert(0, tokens)
             if ctx_length == 0:
@@ -40,7 +40,7 @@ def tokenize_dialogue(dialogue: Union[str, List[str]], tokenizer, max_length=204
     elif tokenizer.truncation_side == "right":
         for phrase in dialogue:
             # Manually added BOS and EOS above so we don't want to add special tokens here
-            tokens = tokenizer(phrase, add_special_tokens=False).input_ids[:ctx_length]
+            tokens = tokenizer(phrase, add_special_tokens=False , pad_to_multiple_of = pad_to_multiple_of ).input_ids[:ctx_length]
             ctx_length -= len(tokens)
             out.append(tokens)
             if ctx_length == 0:
