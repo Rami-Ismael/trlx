@@ -75,8 +75,8 @@ class PromptPipeline(BasePipeline):
     def __len__(self) -> int:
         return len(self.prompts)
 
-    def create_loader(self, batch_size: int, shuffle=False) -> DataLoader:
-        collate_fn = DataCollatorWithPadding(self.tokenizer) if self.tokenizer else torch.vstack
+    def create_loader(self, batch_size: int,  pad_to_multiple_of:int ,shuffle=False) -> DataLoader:
+        collate_fn = DataCollatorWithPadding(self.tokenizer , pad_to_multiple_of = pad_to_multiple_of) if self.tokenizer else torch.vstack
         return DataLoader(self, batch_size=batch_size, collate_fn=collate_fn, shuffle=shuffle)
 
 
