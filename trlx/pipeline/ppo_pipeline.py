@@ -51,6 +51,7 @@ class PPORolloutStorage(BaseRolloutStore):
         shuffle: bool,
     ) -> DataLoader:
         def collate_fn(elems: Iterable[PPORLElement]):
+            '''
             return PPORLBatch(
                 # Left padding of already left-padded queries
                 pad_sequence(
@@ -76,5 +77,25 @@ class PPORolloutStorage(BaseRolloutStore):
                     batch_first=True,
                 ),
             )
-
+            '''
         return DataLoader(self, batch_size, shuffle=shuffle, collate_fn=collate_fn)
+    def add_padding(self , examples, pad_to_multiple_of=None):
+        import torch
+        length_of_first = examples[0].size(0)
+        
+        are_tensors_same_length = all(x.size(0) == length_of_first for x in examples)
+        if are_tensors_same_length and (pad_to_multiple_of is None or length_of_first % pad_to_multiple_of == 0):
+            return torch.stack(examples, dim=0)
+
+        max_length = max(x.size(0) for x in examples)
+        
+        if pad_to_multiple_of is not None and (max_length % pad_to_multiple_of != 0):
+                max_length = ((max_length // pad_to_multiple_of) + 1) * pad_to_multiple_of
+        result = examples[0].new_full([len(examples), max_length], self.pad_token_id)
+        for i, example in enumerate(examples):
+            if self.padding_side == "right":
+                result[i, : example.shape[0]] = example
+            else:
+                result[i, -example.shape[0] :] = example
+        return result
+
