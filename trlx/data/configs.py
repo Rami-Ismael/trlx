@@ -1,5 +1,6 @@
+from copy import deepcopy
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 import yaml
 
@@ -15,6 +16,20 @@ def merge(base: Dict, update: Dict, updated: Set) -> Dict:
         elif k in update:
             base[k] = update[k]
             updated.add(k)
+
+    return base
+
+
+def _merge_dicts(base: Dict, update: Dict) -> Dict:
+    "Merge two dictionaries recursively, returning a new dictionary."
+
+    base = deepcopy(base)
+
+    for k, v in update.items():
+        if isinstance(v, dict):
+            base[k] = _merge_dicts(base.get(k, {}), v)
+        else:
+            base[k] = v
 
     return base
 
@@ -147,7 +162,9 @@ class TrainConfig:
     :param tracker: Tracker to use for logging. Default: "wandb"
     :type tracker: str
 
-    :param checkpoint_interval: Save model every checkpoint_interval steps
+    :param checkpoint_interval: Save model every checkpoint_interval steps.
+        Each checkpoint is stored in a sub-directory of the `TrainConfig.checkpoint_dir`
+        directory in the format `checkpoint_dir/checkpoint_{step}`.
     :type checkpoint_interval: int
 
     :param eval_interval: Evaluate model every eval_interval steps
@@ -183,6 +200,9 @@ class TrainConfig:
 
     :param seed: Random seed
     :type seed: int
+
+    :param minibatch_size: Size of model input during one forward pass. Must divide batch size
+    :type minibatch_size: int
     """
 
     total_steps: int
@@ -207,8 +227,11 @@ class TrainConfig:
 
     tracker: Optional[str] = "wandb"
     logging_dir: Optional[str] = None
+    tags: Optional[List[str]] = field(default_factory=list)
 
     seed: int = 1000
+
+    minibatch_size: Optional[int] = None
 
     @classmethod
     def from_dict(cls, config: Dict[str, Any]):
@@ -255,6 +278,16 @@ class TRLConfig:
 
         return data
 
+    def evolve(self, **kwargs) -> "TRLConfig":
+        """
+        Evolve TRLConfig with new parameters. Can update nested parameters.
+        >>> config = trlx.data.default_configs.default_ilql_config()
+        >>> config = config.evolve(method=dict(gamma=0.99, gen_kwargs=dict(max_new_tokens=100))
+        >>> config.method.gamma
+        0.99
+        """
+        return TRLConfig.from_dict(_merge_dicts(self.to_dict(), kwargs))
+
     @classmethod
     def from_dict(cls, config: Dict):
         """
@@ -271,10 +304,27 @@ class TRLConfig:
 
     @classmethod
     def update(cls, baseconfig: Dict, config: Dict):
-        updates = set()
-        merged = merge(baseconfig, config, updates)
+        update = {}
+        # unflatten a string variable name into a nested dictionary
+        # key1.key2.key3: value -> {key1: {key2: {key3: value}}}
+        for name, value in config.items():
+            if isinstance(value, dict):
+                update[name] = value
+            else:
+                *layers, var = name.split(".")
+                if layers:
+                    d = update.setdefault(layers[0], {})
+                    for layer in layers[1:]:
+                        d = d.setdefault(layer, {})
+                    d[var] = value
 
-        for param in config:
+        if not isinstance(baseconfig, Dict):
+            baseconfig = baseconfig.to_dict()
+
+        updates = set()
+        merged = merge(baseconfig, update, updates)
+
+        for param in update:
             if param not in updates:
                 raise ValueError(f"parameter {param} is not present in the config (typo or a wrong config)")
 
